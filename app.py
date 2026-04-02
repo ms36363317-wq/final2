@@ -94,7 +94,7 @@ LAST_CONV_LAYER = "top_conv"
 # ─── Load Models ─────────────────────────────────────────────────────────────
 @st.cache_resource(show_spinner=False)
 def load_vision_model():
-    model = load_model("model.h5", compile=False)
+    model = load_model("model.h5")
     return model
 
 @st.cache_resource(show_spinner=False)
