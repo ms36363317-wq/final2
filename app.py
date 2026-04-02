@@ -466,137 +466,95 @@ def _fallback_explain(disease, confidence):
     ])
 
 # ─────────────────────────────────────────────
-# UI
-# ─────────────────────────────────────────────
-st.markdown("""
-<div class="header-block">
-    <p class="header-title">👁 Eye Disease AI Diagnostics</p>
-    <p class="header-sub">EfficientNetB3 · Grad-CAM++ · Phi-3 Medical Report · 7 Disease Classes</p>
-</div>
-""", unsafe_allow_html=True)
-
-# Sidebar
+# ─── UI ──────────────────────────────────────────────────────────────────────
+st.markdown('<div class="main-title">👁️ Eye Disease AI Diagnosis</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Upload a retinal fundus image for AI-powered disease classification and medical report</div>', unsafe_allow_html=True)
+ 
 with st.sidebar:
-    st.markdown("### ⚙️ Settings")
-    show_gradcam = st.toggle("Show Grad-CAM++ Heatmap", value=True)
-    show_all_probs = st.toggle("Show All Class Probabilities", value=False)
-    use_llm = st.toggle("Use Phi-3 LLM for Report", value=False,
-                        help="Slower but more dynamic explanations. Requires GPU for best performance.")
-
+    st.header("⚙️ Settings")
+    use_gradcam = st.toggle("Show Grad-CAM++ heatmap", value=True)
+    use_llm = st.toggle("Generate AI medical report (Phi-3)", value=True)
     st.markdown("---")
-    st.markdown("**📋 Supported Conditions**")
-    for name in CLASS_NAMES:
-        severity, color = DISEASE_INFO[name]
-        st.markdown(f"<span style='color:{color};font-size:0.8rem'>● {name}</span>", unsafe_allow_html=True)
-
+    st.markdown("**Detectable conditions:**")
+    for c in CLASS_NAMES:
+        st.markdown(f"- {c}")
     st.markdown("---")
-    st.caption("Model: EfficientNetB3 · Input: 300×300px")
-    st.caption("Place `best_efficientnetb3.h5` in the app directory.")
-
-# Load models
-vision_model = load_vision_model()
-
-tokenizer, llm = None, None
-if use_llm:
-    with st.spinner("Loading Phi-3 LLM..."):
-        tokenizer, llm = load_llm()
-
-# Main area
-col1, col2 = st.columns([1, 1.3], gap="large")
-
-with col1:
-    st.markdown("#### 🖼 Upload Retinal Image")
-    uploaded_file = st.file_uploader(
-        "JPG, PNG, JPEG supported",
-        type=["jpg", "jpeg", "png"],
-        label_visibility="collapsed"
+    st.caption("Model: EfficientNetB3 · LLM: Phi-3-mini · XAI: Grad-CAM++")
+ 
+uploaded = st.file_uploader(
+    "Upload retinal fundus image",
+    type=["jpg", "jpeg", "png"],
+    label_visibility="collapsed",
+)
+ 
+if uploaded:
+    img_pil = Image.open(uploaded).convert("RGB")
+ 
+    # Load vision model
+    with st.spinner("Loading vision model…"):
+        vision_model = load_vision_model()
+ 
+    # Predict
+    with st.spinner("Analyzing image…"):
+        disease, confidence, all_probs, arr = predict(img_pil, vision_model)
+ 
+    # Layout
+    col1, col2 = st.columns([1, 1.4], gap="large")
+ 
+    with col1:
+        st.markdown('<div class="section-header">📷 Input Image</div>', unsafe_allow_html=True)
+        st.image(img_pil, use_container_width=True)
+ 
+    with col2:
+        st.markdown('<div class="section-header">🔬 Diagnosis Result</div>', unsafe_allow_html=True)
+        color = "#27ae60" if disease == "Healthy" else "#e74c3c"
+        st.markdown(
+            f'<div class="disease-badge" style="background:{color};">{disease}</div>',
+            unsafe_allow_html=True,
+        )
+        st.progress(confidence, text=f"Confidence: {confidence:.1%}")
+ 
+        st.markdown('<div class="section-header">📊 All Class Probabilities</div>', unsafe_allow_html=True)
+        for name, prob in sorted(zip(CLASS_NAMES, all_probs), key=lambda x: -x[1]):
+            bar_color = "#1a73e8" if name == disease else "#ddd"
+            st.markdown(
+                f'<div class="confidence-bar-label">{name} — {prob:.1%}</div>',
+                unsafe_allow_html=True,
+            )
+            st.progress(float(prob))
+ 
+    # Grad-CAM++
+    if use_gradcam:
+        st.markdown("---")
+        st.markdown('<div class="section-header">🔥 Grad-CAM++ Activation Map</div>', unsafe_allow_html=True)
+        with st.spinner("Generating heatmap…"):
+            try:
+                orig_np, heatmap_np, overlay_np = make_gradcam_plusplus(arr, vision_model, LAST_CONV_LAYER)
+                c1, c2, c3 = st.columns(3)
+                c1.image(orig_np, caption="Original", use_container_width=True)
+                c2.image(heatmap_np, caption="Heatmap", use_container_width=True)
+                c3.image(overlay_np, caption="Overlay", use_container_width=True)
+            except Exception as e:
+                st.warning(f"Grad-CAM++ failed: {e}")
+ 
+    # LLM Report
+    if use_llm:
+        st.markdown("---")
+        st.markdown('<div class="section-header">📝 AI Medical Report</div>', unsafe_allow_html=True)
+        with st.spinner("Generating medical report (Phi-3)…"):
+            try:
+                tokenizer, llm = load_llm()
+                report = generate_report(disease, confidence, tokenizer, llm)
+                st.markdown(f'<div class="report-box">{report.replace(chr(10), "<br>")}</div>', unsafe_allow_html=True)
+            except Exception as e:
+                st.warning(f"LLM report failed: {e}")
+ 
+    st.markdown(
+        '<div class="warning-box">⚠️ This tool is for research purposes only. '
+        'It is not a substitute for professional medical advice, diagnosis, or treatment. '
+        'Always consult a qualified ophthalmologist.</div>',
+        unsafe_allow_html=True,
     )
-
-    if uploaded_file:
-        pil_img = Image.open(uploaded_file)
-        st.image(pil_img, caption="Uploaded Image", use_container_width=True)
-        analyze_btn = st.button("🔍 Analyze Image", use_container_width=True)
-    else:
-        st.info("Upload a retinal scan image to begin diagnosis.")
-        analyze_btn = False
-
-with col2:
-    if uploaded_file and analyze_btn:
-        if vision_model is None:
-            st.error("Vision model not loaded. Please check `best_efficientnetb3.h5`.")
-        else:
-            with st.spinner("Running EfficientNetB3 inference..."):
-                img_array = preprocess_image(pil_img)
-                disease, confidence, all_probs = predict_disease(img_array, vision_model)
-
-            severity_label, severity_color = DISEASE_INFO.get(disease, ('Unknown', '#94a3b8'))
-
-            st.markdown("#### 🩺 Diagnosis Result")
-            st.markdown(f"""
-<div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span style="color:#94a3b8;font-size:0.85rem">PREDICTED CONDITION</span>
-        <span style="color:{severity_color};font-size:0.82rem;background:rgba(0,0,0,0.3);padding:2px 8px;border-radius:100px;border:1px solid {severity_color}40">{severity_label}</span>
-    </div>
-    <div class="disease-badge">{disease}</div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-        <span style="color:#94a3b8;font-size:0.8rem">Confidence</span>
-        <span style="font-family:'Space Mono',monospace;color:#00d4ff;font-size:0.85rem">{confidence:.1%}</span>
-    </div>
-    <div class="conf-bar-bg">
-        <div class="conf-bar-fill" style="width:{confidence*100:.1f}%"></div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-            if show_all_probs:
-                st.markdown("**All Class Probabilities**")
-                sorted_probs = sorted(all_probs.items(), key=lambda x: x[1], reverse=True)
-                for cls, prob in sorted_probs:
-                    bar_w = int(prob * 100)
-                    highlight = "color:#00d4ff;" if cls == disease else ""
-                    st.markdown(f"""
-<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-    <span style="font-size:0.78rem;{highlight}min-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{cls}</span>
-    <div style="background:#1e293b;border-radius:100px;height:6px;flex:1;overflow:hidden">
-        <div style="width:{bar_w}%;height:100%;background:{'#00d4ff' if cls == disease else '#475569'};border-radius:100px"></div>
-    </div>
-    <span style="font-family:'Space Mono',monospace;font-size:0.75rem;{highlight}min-width:40px;text-align:right">{prob:.1%}</span>
-</div>
-""", unsafe_allow_html=True)
-
-            # Medical Report
-            st.markdown("#### 📋 AI Medical Report")
-            with st.spinner("Generating medical explanation..."):
-                report_lines = llm_explain(disease, confidence, tokenizer, llm)
-
-            report_html = ""
-            for i, line in enumerate(report_lines, 1):
-                # Strip leading number if present
-                text = line.lstrip("0123456789. ").strip()
-                report_html += f"""
-<div class="report-line">
-    <span class="line-num">{i}.</span>
-    <span class="line-text">{text}</span>
-</div>"""
-
-            st.markdown(f'<div class="card">{report_html}</div>', unsafe_allow_html=True)
-
-            # Grad-CAM
-            if show_gradcam:
-                st.markdown("#### 🔥 Grad-CAM++ Visualization")
-                with st.spinner("Computing saliency map..."):
-                    heatmap = generate_gradcam(img_array, vision_model)
-                if heatmap is not None:
-                    buf = build_gradcam_figure(pil_img, heatmap)
-                    st.image(buf, use_container_width=True)
-                    st.caption("Highlighted regions show areas the model focused on for the prediction.")
-
-    elif not uploaded_file:
-        st.markdown("""
-<div class="card" style="text-align:center;padding:3rem 1.5rem;border:1px dashed rgba(255,255,255,0.08)">
-    <div style="font-size:3rem;margin-bottom:1rem">👁</div>
-    <div style="color:#94a3b8;font-size:0.95rem">Results will appear here after analysis</div>
-    <div style="color:#475569;font-size:0.8rem;margin-top:0.5rem">Upload an image and click Analyze</div>
-</div>
-""", unsafe_allow_html=True)
+ 
+else:
+    st.info("👆 Upload a retinal fundus image to begin diagnosis.")
