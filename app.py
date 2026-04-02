@@ -92,9 +92,8 @@ IMG_SIZE = (300, 300)
 LAST_CONV_LAYER = "top_conv"
 
 # ─── Load Models ─────────────────────────────────────────────────────────────
-@st.cache_resource(show_spinner=False)
 def load_vision_model():
-    model = load_model("best_efficientnetb3.keras")   # or .h5
+    model = load_model("model.h5", compile=False)
     return model
 
 @st.cache_resource(show_spinner=False)
