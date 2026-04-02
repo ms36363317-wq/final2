@@ -92,9 +92,22 @@ IMG_SIZE = (300, 300)
 LAST_CONV_LAYER = "top_conv"
 
 # ─── Load Models ─────────────────────────────────────────────────────────────
+# ─── Load Models ─────────────────────────────────────────────────────────────
+import os
+import gdown
+from tensorflow.keras.models import load_model
+
 @st.cache_resource(show_spinner=False)
 def load_vision_model():
-    model = load_model("best_efficientnetb3.keras")   # or .h5
+    MODEL_PATH = "best_efficientnetb3.keras"
+
+    # لو الموديل مش موجود → نزّله
+    if not os.path.exists(MODEL_PATH):
+        url = "https://drive.google.com/file/d/1hdlvVJG-ToszdWYRw2IEf6O4Nievv8vC/view?usp=sharing"
+        gdown.download(url, MODEL_PATH, quiet=False)
+
+    # تحميل الموديل
+    model = load_model(MODEL_PATH, compile=False)
     return model
 
 @st.cache_resource(show_spinner=False)
