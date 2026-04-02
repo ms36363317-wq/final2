@@ -4,7 +4,7 @@ import numpy as np
 from PIL import Image
 
 # Load model
-model = tf.keras.models.load_model("model.h5")
+model = tf.keras.models.load_model("best_efficientnetb3.keras")
 
 IMG_SIZE = (300, 300)
 
