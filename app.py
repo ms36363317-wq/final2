@@ -219,6 +219,9 @@ DISEASE_INFO = {
 # ─────────────────────────────────────────────
 @st.cache_resource
 def load_vision_model():
+    import tensorflow as tf
+    from tensorflow import keras
+
     # Support both naming conventions
     for model_path in ["best_efficientnetb3.h5", "model.h5"]:
         if os.path.exists(model_path):
@@ -227,35 +230,59 @@ def load_vision_model():
         st.error("❌ Model file not found.\n\nPlace `best_efficientnetb3.h5` (or `model.h5`) in the same directory as this app.")
         return None
 
-    # Try multiple loading strategies for Keras 2 / Keras 3 / TF compatibility
-    # Strategy 1: standard load_model
-    try:
-        return load_model(model_path)
-    except Exception:
-        pass
+    NUM_CLASSES = len(CLASS_NAMES)
 
-    # Strategy 2: force legacy h5 format via tf.keras directly
-    try:
-        import tensorflow as tf
-        return tf.keras.models.load_model(model_path)
-    except Exception:
-        pass
-
-    # Strategy 3: compile=False (skips optimizer state issues)
+    # Strategy 1: Full model load (architecture + weights)
     try:
         return load_model(model_path, compile=False)
     except Exception:
         pass
 
-    # Strategy 4: use tf_keras (standalone Keras 2 package) if installed
+    # Strategy 2: tf_keras full load
     try:
         import tf_keras
         return tf_keras.models.load_model(model_path, compile=False)
     except Exception:
         pass
 
-    st.error("❌ Could not load the model. Check Keras/TF version compatibility.")
-    return None
+    # Strategy 3: Weights-only file — rebuild EfficientNetB3 architecture then load weights
+    try:
+        base_model = keras.applications.EfficientNetB3(
+            include_top=False,
+            weights=None,
+            input_shape=(300, 300, 3)
+        )
+        x = base_model.output
+        x = keras.layers.GlobalAveragePooling2D()(x)
+        x = keras.layers.BatchNormalization()(x)
+        x = keras.layers.Dense(256, activation="relu",
+                               kernel_initializer="he_normal",
+                               kernel_regularizer=keras.regularizers.l2(1e-4))(x)
+        x = keras.layers.Dropout(0.5)(x)
+        output = keras.layers.Dense(NUM_CLASSES, activation="softmax")(x)
+        model = keras.Model(inputs=base_model.input, outputs=output)
+        model.load_weights(model_path)
+        return model
+    except Exception as e1:
+        pass
+
+    # Strategy 4: Same architecture but try by_name=True
+    try:
+        base_model = keras.applications.EfficientNetB3(
+            include_top=False, weights=None, input_shape=(300, 300, 3)
+        )
+        x = base_model.output
+        x = keras.layers.GlobalAveragePooling2D()(x)
+        x = keras.layers.BatchNormalization()(x)
+        x = keras.layers.Dense(256, activation="relu")(x)
+        x = keras.layers.Dropout(0.5)(x)
+        output = keras.layers.Dense(NUM_CLASSES, activation="softmax")(x)
+        model = keras.Model(inputs=base_model.input, outputs=output)
+        model.load_weights(model_path, by_name=True, skip_mismatch=True)
+        return model
+    except Exception as e2:
+        st.error(f"❌ Could not load model.\n\nStrategy 3 error: {str(e1)[:300]}\n\nStrategy 4 error: {str(e2)[:300]}")
+        return None
 
 @st.cache_resource
 def load_llm():
