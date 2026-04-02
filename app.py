@@ -92,19 +92,13 @@ IMG_SIZE = (300, 300)
 LAST_CONV_LAYER = "top_conv"
 
 # ─── Load Models ─────────────────────────────────────────────────────────────
-import os
 from tensorflow.keras.models import load_model
 
-@st.cache_resource(show_spinner=False)
 def load_vision_model():
-    MODEL_PATH = "best_efficientnetb3.keras"
-
-
-    # تحميل الموديل
     model = load_model("model.h5", compile=False)
     return model
 
-@st.cache_resource(show_spinner=False)
+
 def load_llm():
     model_name = "microsoft/Phi-3-mini-4k-instruct"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
