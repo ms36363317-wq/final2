@@ -14,183 +14,73 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 # ─────────────────────────────────────────────
-# Page Config
-# ─────────────────────────────────────────────
+# ─── Page Config ────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Eye Disease AI",
+    page_title="Eye Disease AI Diagnosis",
     page_icon="👁️",
     layout="wide",
-    initial_sidebar_state="expanded"
 )
-
-# ─────────────────────────────────────────────
-# Custom CSS
-# ─────────────────────────────────────────────
+ 
+# ─── Custom CSS ─────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;600&display=swap');
-
-:root {
-    --bg: #0a0e1a;
-    --surface: #111827;
-    --surface2: #1c2536;
-    --accent: #00d4ff;
-    --accent2: #7c3aed;
-    --text: #e2e8f0;
-    --muted: #64748b;
-    --danger: #ef4444;
-    --success: #10b981;
-    --warning: #f59e0b;
-}
-
-html, body, [class*="css"] {
-    font-family: 'DM Sans', sans-serif;
-    background-color: var(--bg);
-    color: var(--text);
-}
-
-.stApp { background: var(--bg); }
-
-/* Header */
-.header-block {
-    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
-    border: 1px solid rgba(0, 212, 255, 0.2);
-    border-radius: 16px;
-    padding: 2rem 2.5rem;
-    margin-bottom: 2rem;
-    position: relative;
-    overflow: hidden;
-}
-.header-block::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(ellipse at 60% 40%, rgba(0,212,255,0.06) 0%, transparent 60%);
-    pointer-events: none;
-}
-.header-title {
-    font-family: 'Space Mono', monospace;
-    font-size: 2.2rem;
-    font-weight: 700;
-    color: var(--accent);
-    letter-spacing: -1px;
-    margin: 0;
-}
-.header-sub {
-    color: var(--muted);
-    font-size: 0.95rem;
-    margin-top: 0.4rem;
-    font-weight: 300;
-}
-
-/* Cards */
-.card {
-    background: var(--surface);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1.2rem;
-}
-
-/* Disease badge */
-.disease-badge {
-    display: inline-block;
-    background: linear-gradient(135deg, #00d4ff22, #7c3aed22);
-    border: 1px solid var(--accent);
-    border-radius: 8px;
-    padding: 0.5rem 1.2rem;
-    font-family: 'Space Mono', monospace;
-    font-size: 1.3rem;
-    color: var(--accent);
-    margin: 0.5rem 0 1rem;
-}
-
-/* Confidence bar */
-.conf-bar-bg {
-    background: #1e293b;
-    border-radius: 100px;
-    height: 10px;
-    width: 100%;
-    overflow: hidden;
-    margin: 0.3rem 0 1rem;
-}
-.conf-bar-fill {
-    height: 100%;
-    border-radius: 100px;
-    background: linear-gradient(90deg, var(--accent2), var(--accent));
-    transition: width 0.8s ease;
-}
-
-/* Report lines */
-.report-line {
-    display: flex;
-    gap: 0.8rem;
-    align-items: flex-start;
-    margin-bottom: 0.7rem;
-    padding: 0.6rem 0.8rem;
-    background: rgba(0,212,255,0.04);
-    border-left: 2px solid var(--accent2);
-    border-radius: 0 6px 6px 0;
-}
-.line-num {
-    font-family: 'Space Mono', monospace;
-    color: var(--accent);
-    font-size: 0.8rem;
-    min-width: 1.4rem;
-    margin-top: 2px;
-}
-.line-text {
-    color: var(--text);
-    font-size: 0.92rem;
-    line-height: 1.5;
-}
-
-/* Sidebar */
-section[data-testid="stSidebar"] {
-    background: var(--surface) !important;
-    border-right: 1px solid rgba(255,255,255,0.06);
-}
-
-/* Upload area */
-.stFileUploader > div {
-    background: var(--surface2) !important;
-    border: 2px dashed rgba(0,212,255,0.3) !important;
-    border-radius: 12px !important;
-}
-
-/* Buttons */
-.stButton > button {
-    background: linear-gradient(135deg, #00d4ff, #7c3aed) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 8px !important;
-    padding: 0.6rem 2rem !important;
-    font-family: 'Space Mono', monospace !important;
-    font-weight: 700 !important;
-    font-size: 0.9rem !important;
-    letter-spacing: 0.05em !important;
-    transition: all 0.2s !important;
-}
-.stButton > button:hover {
-    opacity: 0.85 !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 4px 20px rgba(0,212,255,0.3) !important;
-}
-
-/* Spinner */
-.stSpinner > div { border-top-color: var(--accent) !important; }
-
-/* Hide streamlit branding */
-#MainMenu, footer, header { visibility: hidden; }
+    .main-title {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #1a73e8;
+        text-align: center;
+        margin-bottom: 0.2rem;
+    }
+    .sub-title {
+        font-size: 1rem;
+        color: #555;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    .disease-badge {
+        display: inline-block;
+        background: #1a73e8;
+        color: white;
+        padding: 6px 18px;
+        border-radius: 20px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    .confidence-bar-label {
+        font-size: 0.9rem;
+        color: #333;
+        margin-bottom: 4px;
+    }
+    .report-box {
+        background: #f0f4ff;
+        border-left: 4px solid #1a73e8;
+        border-radius: 8px;
+        padding: 1rem 1.2rem;
+        font-size: 0.97rem;
+        line-height: 1.8;
+        color: #222;
+    }
+    .warning-box {
+        background: #fff8e1;
+        border-left: 4px solid #f9a825;
+        border-radius: 8px;
+        padding: 0.8rem 1rem;
+        font-size: 0.88rem;
+        color: #555;
+        margin-top: 1.5rem;
+    }
+    .section-header {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: #1a73e8;
+        margin-top: 1.2rem;
+        margin-bottom: 0.4rem;
+    }
 </style>
 """, unsafe_allow_html=True)
-
-# ─────────────────────────────────────────────
-# Constants
-# ─────────────────────────────────────────────
+ 
+# ─── Constants ───────────────────────────────────────────────────────────────
 CLASS_NAMES = [
     'Diabetic Retinopathy',
     'Disc Edema',
@@ -198,7 +88,8 @@ CLASS_NAMES = [
     'Myopia',
     'Pterygium',
     'Retinal Detachment',
-    'Retinitis Pigmentosa'
+    'Retinitis Pigmentosa',
+
 ]
 
 IMG_SIZE = (300, 300)
