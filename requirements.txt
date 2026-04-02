@@ -1,8 +1,8 @@
 streamlit>=1.35
-tensorflow>=2.15
-tf_keras>=2.15
+tensorflow>=2.15,<2.19
+tf-keras>=2.15
 torch>=2.2
-transformers>=4.40
+transformers>=4.40,<5.0
 accelerate>=0.30
 opencv-python-headless>=4.9
 Pillow>=10.0
